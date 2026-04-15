@@ -1,1 +1,643 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>함봐볼래 : 안전모 벗자마자 달려가는 찐-맛집</title>
+  <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=t9b05ir3jn&submodules=geocoder"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial,sans-serif; background:#f7f7f7; color:#222; }
+    .page { padding:18px 20px 20px; }
+    .title { font-size:32px; font-weight:800; margin-bottom:18px; }
+    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:12px; flex-wrap:wrap; }
+    .sub-title { font-size:18px; font-weight:700; display:flex; align-items:center; gap:10px; }
+    .count-badge { display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:28px; padding:0 10px; border-radius:999px; background:#e6f3d8; color:#6b8f2a; font-weight:700; font-size:14px; }
+    .btn-group { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn { border:1px solid #d9d9d9; background:#fff; border-radius:10px; padding:10px 14px; font-size:14px; cursor:pointer; }
+    .btn.green { background:#eef8e8; border-color:#c9e4b7; }
+    .btn.orange { background:#fff3e8; border-color:#f0cfab; }
+    .btn.blue { background:#eef5ff; border-color:#c9dcff; }
+    .layout { display:flex; height:calc(100vh - 140px); min-height:640px; background:#fff; border-radius:14px; overflow:hidden; border:1px solid #e5e5e5; }
+    .sidebar { width:340px; border-right:1px solid #ececec; background:#fafafa; display:flex; flex-direction:column; }
+    .search-wrap { padding:14px 12px 8px; border-bottom:1px solid #efefef; background:#fafafa; }
+    .search-label { font-size:14px; color:#888; margin-bottom:8px; }
+    .search-input { width:100%; height:42px; border:1px solid #ddd; border-radius:8px; padding:0 12px; font-size:14px; outline:none; display:block; }
+    .result-count { padding:0 12px 10px; font-size:14px; color:#888; text-align:right; }
+    .store-list { overflow-y:auto; flex:1; }
+    .store-item { padding:16px 18px; border-top:1px solid #f0f0f0; cursor:pointer; background:#fff; }
 
+    .store-item-top { display:flex; gap:12px; align-items:flex-start; }
+    .store-thumb {
+      width:86px;
+      height:86px;
+      border-radius:10px;
+      object-fit:cover;
+      flex:0 0 86px;
+      border:1px solid #ececec;
+      background:#f3f3f3;
+      display:block;
+    }
+    .store-item-body { min-width:0; flex:1; }
+    .store-item:hover { background:#f8f8f8; }
+    .store-name { font-size:18px; font-weight:700; margin-bottom:6px; }
+    .store-line { font-size:15px; color:#666; line-height:1.5; word-break:keep-all; }
+    .photo-badge { display:inline-block; margin-top:8px; padding:3px 8px; border-radius:999px; background:#f1f7ff; color:#3b6ea8; font-size:12px; font-weight:700; }
+    .mini-btn { border:1px solid #ddd; background:#fff; border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; white-space:nowrap; margin-top:10px; }
+    .map-area { flex:1; position:relative; }
+    #map { width:100%; height:100%; }
+    .naver-tooltip { min-width:260px; max-width:340px; background:#fff; border:1px solid #ddd; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.12); padding:12px 14px; line-height:1.55; font-size:14px; color:#222; }
+    .tooltip-title { font-size:16px; font-weight:800; margin-bottom:8px; }
+    .tooltip-row { margin-bottom:4px; word-break:break-word; white-space:normal; }
+    .tooltip-label { font-weight:700; color:#444; }
+    .tooltip-image { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; margin-bottom:10px; border:1px solid #eee; display:block; background:#f0f0f0; }
+
+    .tooltip-image-wrap { position:relative; margin-bottom:10px; }
+    .tooltip-situation-badge {
+      position:absolute;
+      left:12px;
+      bottom:12px;
+      max-width: calc(100% - 24px);
+      background: rgba(255,255,255,0.96);
+      color:#9a3412;
+      border:1px solid #d6d3d1;
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:15px;
+      font-weight:700;
+      line-height:1.45;
+      word-break:break-word;
+      box-shadow:0 4px 12px rgba(0,0,0,0.10);
+    }
+    .modal-subtitle {
+      margin-top:6px;
+      font-size:16px;
+      font-weight:600;
+      color:#92400e;
+      line-height:1.45;
+    }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:2000; padding:20px; }
+    .modal-backdrop.show { display:flex; }
+    .modal { width:920px; max-width:100%; max-height:90vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.2); padding:22px; }
+    .modal-header { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:18px; }
+    .modal-title { font-size:22px; font-weight:800; margin-bottom:6px; }
+    .close-btn { border:1px solid #ddd; background:#fff; border-radius:10px; padding:8px 12px; cursor:pointer; font-size:14px; }
+    .tab-row { display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid #eee; padding-bottom:12px; }
+    .tab-btn { border:1px solid #ddd; background:#fff; border-radius:999px; padding:9px 14px; cursor:pointer; font-size:14px; font-weight:700; }
+    .tab-btn.active { background:#eef5ff; border-color:#c9dcff; color:#2f5da8; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+    .detail-layout { display:grid; grid-template-columns:1.05fr 1fr; gap:18px; }
+    .detail-card { border:1px solid #ececec; border-radius:14px; padding:16px; background:#fafafa; }
+    .detail-section-title { font-size:16px; font-weight:800; margin-bottom:10px; }
+    .detail-row { margin-bottom:10px; line-height:1.6; font-size:14px; word-break:keep-all; }
+    .detail-label { display:inline-block; min-width:76px; font-weight:700; color:#444; }
+    .photo-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .photo-card { border:1px solid #e8e8e8; border-radius:12px; overflow:hidden; background:#fafafa; cursor:pointer; }
+    .photo-card img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:#f0f0f0; }
+    .photo-card-bottom { padding:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .photo-tag { font-size:12px; color:#666; font-weight:700; }
+    .empty-photo { border:1px dashed #ccc; border-radius:12px; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; color:#999; background:#fcfcfc; font-size:14px; }
+    .form-grid { display:grid; grid-template-columns:120px 1fr; gap:10px 14px; align-items:center; }
+    .form-grid label { font-size:14px; font-weight:700; color:#444; }
+    .form-input, .form-textarea { width:100%; border:1px solid #ddd; border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit; background:#fff; }
+    .form-textarea { min-height:92px; resize:vertical; }
+    .edit-topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+    .helper-text { color:#666; font-size:13px; line-height:1.5; }
+    .review-list { display:grid; gap:10px; }
+    .review-item { border:1px solid #e8e8e8; border-radius:12px; background:#fff; padding:12px 14px; font-size:14px; line-height:1.6; color:#333; word-break:break-word; white-space:pre-wrap; min-height:150px; display:flex; flex-direction:column; justify-content:flex-start; }
+    .review-item-title { font-size:12px; font-weight:700; color:#666; margin-bottom:4px; }
+    .review-stars { font-size:16px; line-height:1; margin-bottom:10px; letter-spacing:1px; }
+    .review-empty { color:#999; font-size:14px; }
+    .rating-select { width:100%; border:1px solid #ddd; border-radius:10px; padding:10px 12px; font-size:14px; background:#fff; }
+    .modal-actions { margin-top:18px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+    .viewer-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.82); display:none; align-items:center; justify-content:center; z-index:3000; padding:24px; }
+    .viewer-backdrop.show { display:flex; }
+    .viewer-inner { max-width:min(1000px,95vw); max-height:92vh; position:relative; }
+    .viewer-image { display:block; max-width:100%; max-height:92vh; border-radius:14px; background:#111; object-fit:contain; }
+    .viewer-close { position:absolute; top:-12px; right:-12px; border:none; background:#fff; border-radius:999px; width:36px; height:36px; cursor:pointer; font-size:18px; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+    @media (max-width:960px) {
+      .detail-layout { grid-template-columns:1fr; }
+      .photo-grid { grid-template-columns:1fr; }
+      .form-grid { grid-template-columns:1fr; }
+      .layout { flex-direction:column; height:auto; }
+      .sidebar { width:100%; border-right:0; border-bottom:1px solid #ececec; }
+      .map-area { height:60vh; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="title">함봐볼래 : 안전모 벗자마자 달려가는 찐-맛집</div>
+  <div class="top-bar">
+    <div class="sub-title"><span>🍴 안전모 벗자마자 달려가는 찐-맛집</span><span class="count-badge" id="countBadge">0곳</span></div>
+    <div class="btn-group">
+      <button class="btn" onclick="downloadTemplate()">양식</button>
+      <input type="file" id="excelUpload" accept=".xlsx,.xls" style="display:none" />
+      <button class="btn green" onclick="document.getElementById('excelUpload').click()">엑셀 업로드</button>
+      <button class="btn orange" onclick="saveHTML()">저장 HTML</button>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="search-wrap">
+        <div class="search-label">맛집 검색</div>
+        <input type="text" id="searchInput" class="search-input" placeholder="상호명 · 주요요리 · 추천현장 · 추천상황" />
+      </div>
+      <div class="result-count" id="resultCount">0곳</div>
+      <div class="store-list" id="storeList"></div>
+    </div>
+    <div class="map-area"><div id="map"></div></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="storeModalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title" id="storeModalTitle">장소</div><div class="modal-subtitle" id="storeModalSubtitle"></div></div>
+      <button class="close-btn" onclick="closeStoreModal()">닫기</button>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" id="viewTabBtn" onclick="switchStoreTab('view')">보기</button>
+      <button class="tab-btn" id="editTabBtn" onclick="switchStoreTab('edit')">수정</button>
+    </div>
+    <div class="tab-panel active" id="viewTabPanel">
+      <div class="detail-layout">
+        <div>
+          <div class="detail-card" style="margin-bottom:18px;">
+            <div class="detail-section-title">장소 정보</div>
+            <div id="storeDetailInfo"></div>
+          </div>
+          <div class="detail-card">
+            <div class="detail-section-title">임직원 리뷰</div>
+            <div id="reviewDisplay"></div>
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-section-title">사진</div>
+          <div class="photo-grid" id="photoGrid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-panel" id="editTabPanel">
+      <div class="detail-layout">
+        <div>
+          <div class="detail-card" style="margin-bottom:18px;">
+            <div class="edit-topbar">
+              <div class="detail-section-title" style="margin-bottom:0;">정보 수정</div>
+              <div class="helper-text">수정 후 저장을 누르면 바로 반영됩니다.</div>
+            </div>
+            <div class="form-grid">
+              <label for="editName">상호명</label><input id="editName" class="form-input" type="text" />
+              <label for="editMainDish">주요요리</label><input id="editMainDish" class="form-input" type="text" />
+              <label for="editAddress">주소</label><input id="editAddress" class="form-input" type="text" />
+              <label for="editPhone">전화번호</label><input id="editPhone" class="form-input" type="text" />
+              <label for="editSite">추천현장</label><input id="editSite" class="form-input" type="text" />
+              <label for="editSituation">추천상황</label><textarea id="editSituation" class="form-textarea"></textarea>
+            </div>
+          </div>
+          <div class="detail-card">
+            <div class="edit-topbar">
+              <div class="detail-section-title" style="margin-bottom:0;">임직원 리뷰 수정</div>
+              <div class="helper-text">최대 4명까지 입력할 수 있습니다.</div>
+            </div>
+            <div class="form-grid">
+              <label for="editReview1">리뷰 1</label><div><textarea id="editReview1" class="form-textarea"></textarea><div style="height:8px;"></div><select id="editRating1" class="rating-select"><option value="">별점 선택</option><option value="0.5">0.5</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option></select></div>
+              <label for="editReview2">리뷰 2</label><div><textarea id="editReview2" class="form-textarea"></textarea><div style="height:8px;"></div><select id="editRating2" class="rating-select"><option value="">별점 선택</option><option value="0.5">0.5</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option></select></div>
+              <label for="editReview3">리뷰 3</label><div><textarea id="editReview3" class="form-textarea"></textarea><div style="height:8px;"></div><select id="editRating3" class="rating-select"><option value="">별점 선택</option><option value="0.5">0.5</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option></select></div>
+              <label for="editReview4">리뷰 4</label><div><textarea id="editReview4" class="form-textarea"></textarea><div style="height:8px;"></div><select id="editRating4" class="rating-select"><option value="">별점 선택</option><option value="0.5">0.5</option><option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option><option value="2.5">2.5</option><option value="3.0">3.0</option><option value="3.5">3.5</option><option value="4.0">4.0</option><option value="4.5">4.5</option><option value="5.0">5.0</option></select></div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="edit-topbar">
+            <div class="detail-section-title" style="margin-bottom:0;">사진 수정</div>
+            <div><input type="file" id="photoUploadInput" accept="image/*" multiple style="display:none" /><button class="btn green" onclick="triggerPhotoUpload()">사진 추가</button></div>
+          </div>
+          <div class="helper-text">최대 4장까지 등록됩니다. 첫 번째 사진이 지도 툴팁에 표시됩니다.</div>
+          <div class="photo-grid" id="editPhotoGrid" style="margin-top:12px;"></div>
+        </div>
+      </div>
+      <div class="modal-actions"><button class="btn" onclick="resetEditForm()">초기화</button><button class="btn blue" onclick="saveStoreEdits()">수정 저장</button></div>
+    </div>
+    <div class="modal-actions"><button class="btn" onclick="focusSelectedStoreOnMap()">지도 보기</button><button class="btn" onclick="closeStoreModal()">확인</button></div>
+  </div>
+</div>
+
+<div class="viewer-backdrop" id="imageViewerBackdrop">
+  <div class="viewer-inner">
+    <button class="viewer-close" onclick="closeImageViewer()">✕</button>
+    <img id="imageViewerImg" class="viewer-image" src="" alt="원본 사진" />
+  </div>
+</div>
+
+<script id="initialStoreData" type="application/json">[]</script>
+
+<script>
+let map = null;
+let allStores = [];
+let filteredStores = [];
+let markerMap = new Map();
+let infoWindowMap = new Map();
+let hoverTimerMap = new Map();
+let selectedStoreId = null;
+
+const storeListEl = document.getElementById("storeList");
+const resultCountEl = document.getElementById("resultCount");
+const countBadgeEl = document.getElementById("countBadge");
+const searchInputEl = document.getElementById("searchInput");
+const excelUploadEl = document.getElementById("excelUpload");
+const storeModalBackdropEl = document.getElementById("storeModalBackdrop");
+const storeModalTitleEl = document.getElementById("storeModalTitle");
+const storeModalSubtitleEl = document.getElementById("storeModalSubtitle");
+const storeDetailInfoEl = document.getElementById("storeDetailInfo");
+const photoGridEl = document.getElementById("photoGrid");
+const editPhotoGridEl = document.getElementById("editPhotoGrid");
+const reviewDisplayEl = document.getElementById("reviewDisplay");
+const photoUploadInputEl = document.getElementById("photoUploadInput");
+const imageViewerBackdropEl = document.getElementById("imageViewerBackdrop");
+const imageViewerImgEl = document.getElementById("imageViewerImg");
+const viewTabBtnEl = document.getElementById("viewTabBtn");
+const editTabBtnEl = document.getElementById("editTabBtn");
+const viewTabPanelEl = document.getElementById("viewTabPanel");
+const editTabPanelEl = document.getElementById("editTabPanel");
+const editNameEl = document.getElementById("editName");
+const editMainDishEl = document.getElementById("editMainDish");
+const editAddressEl = document.getElementById("editAddress");
+const editPhoneEl = document.getElementById("editPhone");
+const editSiteEl = document.getElementById("editSite");
+const editSituationEl = document.getElementById("editSituation");
+const editReview1El = document.getElementById("editReview1");
+const editReview2El = document.getElementById("editReview2");
+const editReview3El = document.getElementById("editReview3");
+const editReview4El = document.getElementById("editReview4");
+const editRating1El = document.getElementById("editRating1");
+const editRating2El = document.getElementById("editRating2");
+const editRating3El = document.getElementById("editRating3");
+const editRating4El = document.getElementById("editRating4");
+
+function initMap() {
+  map = new naver.maps.Map("map", {
+    center: new naver.maps.LatLng(36.35, 127.8),
+    zoom: 7,
+    minZoom: 6
+  });
+}
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function updateCounts(count) { resultCountEl.textContent = `${count}곳`; countBadgeEl.textContent = `${count}곳`; }
+function getStorePhotos(store) { if (!Array.isArray(store.photos)) store.photos = []; return store.photos; }
+function getStoreReviews(store) {
+  if (!Array.isArray(store.reviews)) store.reviews = [{text:"",rating:""},{text:"",rating:""},{text:"",rating:""},{text:"",rating:""}];
+  store.reviews = store.reviews.slice(0,4).map(item => typeof item === "string" ? { text:item, rating:"" } : { text:item && item.text ? String(item.text) : "", rating:item && item.rating ? String(item.rating) : "" });
+  while (store.reviews.length < 4) store.reviews.push({text:"",rating:""});
+  return store.reviews;
+}
+function renderStars(v) {
+  const rating = parseFloat(v); if (!rating) return "";
+  const full = Math.floor(rating), half = rating % 1 >= 0.5 ? 1 : 0, empty = 5-full-half;
+  return "★".repeat(full) + (half ? "⯪" : "") + "☆".repeat(empty);
+}
+function makeTooltipContent(store) {
+  const firstPhoto = getStorePhotos(store)[0];
+  const situation = escapeHtml(store["추천상황"] || "");
+  return `
+    <div class="naver-tooltip">
+      ${firstPhoto ? `
+        <div class="tooltip-image-wrap">
+          <img class="tooltip-image" src="${firstPhoto}" alt="대표 사진" />
+          ${situation ? `<div class="tooltip-situation-badge">추천상황 : ${situation}</div>` : ""}
+        </div>
+      ` : ""}
+      <div class="tooltip-title">${escapeHtml(store["상호명"])}</div>
+      <div class="tooltip-row"><span class="tooltip-label">주요요리:</span> ${escapeHtml(store["주요요리"])}</div>
+      <div class="tooltip-row"><span class="tooltip-label">주소:</span> ${escapeHtml(store["주소"])}</div>
+      <div class="tooltip-row"><span class="tooltip-label">전화번호:</span> ${escapeHtml(store["전화번호"])}</div>
+      <div class="tooltip-row"><span class="tooltip-label">추천현장:</span> ${escapeHtml(store["추천현장"])}</div>
+    </div>`;
+}
+function clearMarkers() {
+  markerMap.forEach(marker => marker.setMap(null));
+  infoWindowMap.forEach(info => info.close());
+  markerMap.clear(); infoWindowMap.clear(); hoverTimerMap.clear();
+}
+function closeAllInfoWindows() { infoWindowMap.forEach(info => info.close()); }
+function renderMarkers(stores) {
+  clearMarkers();
+  stores.forEach(store => {
+    if (!store.lat || !store.lng) return;
+    const position = new naver.maps.LatLng(store.lat, store.lng);
+    const marker = new naver.maps.Marker({
+      position,
+      map,
+      icon: {
+        url: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQ0IDYwIj4KPHBhdGggZD0iTTIyIDJDMTEuNSAyIDMgMTAuNSAzIDIxYzAgMTQuMSAxNi40IDMxLjUgMTggMzMuMmExLjQgMS40IDAgMCAwIDIgMEMyNC42IDUyLjUgNDEgMzUuMSA0MSAyMSA0MSAxMC41IDMyLjUgMiAyMiAyeiIgZmlsbD0iI2Y5NzMxNiIgc3Ryb2tlPSIjYzI0MTBjIiBzdHJva2Utd2lkdGg9IjIiLz4KPGNpcmNsZSBjeD0iMjIiIGN5PSIyMSIgcj0iOC41IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=",
+        size: new naver.maps.Size(30, 42),
+        scaledSize: new naver.maps.Size(30, 42),
+        origin: new naver.maps.Point(0, 0),
+        anchor: new naver.maps.Point(15, 39)
+      }
+    });
+    const infoWindow = new naver.maps.InfoWindow({
+      content: makeTooltipContent(store),
+      borderWidth: 0,
+      backgroundColor: "transparent",
+      disableAnchor: false,
+      pixelOffset: new naver.maps.Point(0, -18)
+    });
+    naver.maps.Event.addListener(marker, "mouseover", function() {
+      const timer = hoverTimerMap.get(store.id); if (timer) clearTimeout(timer);
+      infoWindow.open(map, marker);
+    });
+    naver.maps.Event.addListener(marker, "mouseout", function() {
+      const timer = setTimeout(() => infoWindow.close(), 180); hoverTimerMap.set(store.id, timer);
+    });
+    naver.maps.Event.addListener(marker, "click", function() { openStoreModal(store.id, "view"); });
+    markerMap.set(store.id, marker); infoWindowMap.set(store.id, infoWindow);
+  });
+}
+function openStoreOnMap(store) {
+  if (store.lat && store.lng) {
+    const position = new naver.maps.LatLng(store.lat, store.lng);
+    map.setCenter(position); map.setZoom(16);
+    const marker = markerMap.get(store.id), info = infoWindowMap.get(store.id);
+    if (marker && info) { closeAllInfoWindows(); info.open(map, marker); }
+  }
+}
+function renderList(stores) {
+  storeListEl.innerHTML = "";
+  if (!stores.length) {
+    storeListEl.innerHTML = '<div class="store-item"><div class="store-line">표시할 맛집이 없습니다.</div></div>';
+    return;
+  }
+  stores.forEach(store => {
+    const photos = getStorePhotos(store);
+    const firstPhoto = photos[0] || "";
+    const item = document.createElement("div");
+    item.className = "store-item";
+    item.innerHTML = `
+      <div class="store-item-top">
+        ${firstPhoto ? `<img class="store-thumb" src="${firstPhoto}" alt="대표사진" />` : `<div class="store-thumb"></div>`}
+        <div class="store-item-body">
+          <div class="store-name">${escapeHtml(store["상호명"] || "-")}</div>
+          <div class="store-line">${escapeHtml(store["주요요리"] || "-")}</div>
+          <div class="store-line">${escapeHtml(store["추천현장"] || "-")}</div>
+          <div class="store-line">${escapeHtml(store["주소"] || "-")}</div>
+          <div class="photo-badge">사진 ${photos.length}/4</div>
+          <button class="mini-btn" data-edit-btn="1">수정</button>
+        </div>
+      </div>`;
+    item.addEventListener("click", () => openStoreModal(store.id, "view"));
+    item.querySelector('[data-edit-btn="1"]').addEventListener("click", (e) => { e.stopPropagation(); openStoreModal(store.id, "edit"); });
+    storeListEl.appendChild(item);
+  });
+}
+function geocodeAddress(address) {
+  return new Promise((resolve) => {
+    naver.maps.Service.geocode({ query: address }, function(status, response) {
+      if (status !== naver.maps.Service.Status.OK) { resolve(null); return; }
+      const item = response.v2.addresses && response.v2.addresses[0];
+      if (!item) { resolve(null); return; }
+      resolve({ lat: parseFloat(item.y), lng: parseFloat(item.x) });
+    });
+  });
+}
+async function normalizeRows(rows) {
+  const validRows = rows.filter(row => row["상호명"] || row["주소"]);
+  let index = 1;
+  for (const row of validRows) {
+    row.id = row.id || `store_${Date.now()}_${index++}`;
+    row.photos = Array.isArray(row.photos) ? row.photos.slice(0,4) : [];
+    row.reviews = Array.isArray(row.reviews) ? row.reviews.slice(0,4) : [{text:"",rating:""},{text:"",rating:""},{text:"",rating:""},{text:"",rating:""}];
+    const address = row["주소"] ? String(row["주소"]).trim() : "";
+    if (!address) continue;
+    if (row.lat && row.lng) continue;
+    const point = await geocodeAddress(address);
+    if (point) { row.lat = point.lat; row.lng = point.lng; }
+  }
+  return validRows;
+}
+function fitMapToStores(stores) {
+  const validPoints = stores.filter(x => x.lat && x.lng);
+  if (!validPoints.length) { map.setCenter(new naver.maps.LatLng(36.35, 127.8)); map.setZoom(7); return; }
+  if (validPoints.length === 1) { map.setCenter(new naver.maps.LatLng(validPoints[0].lat, validPoints[0].lng)); map.setZoom(15); return; }
+  const bounds = new naver.maps.LatLngBounds();
+  validPoints.forEach(x => bounds.extend(new naver.maps.LatLng(x.lat, x.lng)));
+  map.fitBounds(bounds, { top:40, right:40, bottom:40, left:40 });
+}
+function applySearch() {
+  const keyword = searchInputEl.value.trim().toLowerCase();
+  if (!keyword) filteredStores = [...allStores];
+  else filteredStores = allStores.filter(store => [store["상호명"],store["주요요리"],store["주소"],store["전화번호"],store["추천현장"],store["추천상황"]].filter(Boolean).join(" ").toLowerCase().includes(keyword));
+  renderList(filteredStores); renderMarkers(filteredStores); updateCounts(filteredStores.length); fitMapToStores(filteredStores);
+}
+function getStoreById(id) { return allStores.find(store => store.id === id) || null; }
+function renderStoreDetailInfo(store) {
+  storeDetailInfoEl.innerHTML = `
+    <div class="detail-row"><span class="detail-label">상호명</span>${escapeHtml(store["상호명"] || "-")}</div>
+    <div class="detail-row"><span class="detail-label">주요요리</span>${escapeHtml(store["주요요리"] || "-")}</div>
+    <div class="detail-row"><span class="detail-label">주소</span>${escapeHtml(store["주소"] || "-")}</div>
+    <div class="detail-row"><span class="detail-label">전화번호</span>${escapeHtml(store["전화번호"] || "-")}</div>
+    <div class="detail-row"><span class="detail-label">추천현장</span>${escapeHtml(store["추천현장"] || "-")}</div>`;
+}
+function renderReviewDisplay(store) {
+  const reviews = getStoreReviews(store).filter(x => String(x.text || "").trim() !== "");
+  if (!reviews.length) { reviewDisplayEl.innerHTML = '<div class="review-empty">등록된 임직원 리뷰가 없습니다.</div>'; return; }
+  reviewDisplayEl.innerHTML = `<div class="review-list">${reviews.map((review, idx) => `
+    <div class="review-item">
+      <div class="review-item-title">리뷰 ${idx + 1}</div>
+      ${review.rating ? `<div class="review-stars">${renderStars(review.rating)} <span style="font-size:12px;color:#666;">(${escapeHtml(review.rating)})</span></div>` : ""}
+      <div>${escapeHtml(review.text)}</div>
+    </div>`).join("")}</div>`;
+}
+function renderPhotoGrid(store) {
+  const photos = getStorePhotos(store); photoGridEl.innerHTML = "";
+  for (let i=0;i<4;i++) {
+    const photo = photos[i], wrapper = document.createElement("div");
+    if (photo) {
+      wrapper.className = "photo-card";
+      wrapper.innerHTML = `<img src="${photo}" alt="사진 ${i + 1}" /><div class="photo-card-bottom"><div class="photo-tag">${i===0?"대표 사진":`사진 ${i+1}`}</div></div>`;
+      wrapper.addEventListener("click", () => openImageViewer(photo));
+    } else { wrapper.className = "empty-photo"; wrapper.textContent = `${i+1}번 사진 없음`; }
+    photoGridEl.appendChild(wrapper);
+  }
+}
+function renderEditPhotoGrid(store) {
+  const photos = getStorePhotos(store); editPhotoGridEl.innerHTML = "";
+  for (let i=0;i<4;i++) {
+    const photo = photos[i], wrapper = document.createElement("div");
+    if (photo) {
+      wrapper.className = "photo-card";
+      wrapper.innerHTML = `<img src="${photo}" alt="사진 ${i + 1}" /><div class="photo-card-bottom"><div class="photo-tag">${i===0?"대표 사진":`사진 ${i+1}`}</div><button class="mini-btn" data-remove="${i}" style="margin-top:0;">삭제</button></div>`;
+      wrapper.querySelector("button").addEventListener("click", (e) => { e.stopPropagation(); removePhotoAt(i); });
+      wrapper.addEventListener("click", () => openImageViewer(photo));
+    } else { wrapper.className = "empty-photo"; wrapper.textContent = `${i+1}번 사진 자리`; }
+    editPhotoGridEl.appendChild(wrapper);
+  }
+}
+function fillEditForm(store) {
+  editNameEl.value = store["상호명"] || "";
+  editMainDishEl.value = store["주요요리"] || "";
+  editAddressEl.value = store["주소"] || "";
+  editPhoneEl.value = store["전화번호"] || "";
+  editSiteEl.value = store["추천현장"] || "";
+  editSituationEl.value = store["추천상황"] || "";
+  const reviews = getStoreReviews(store);
+  editReview1El.value = reviews[0].text || ""; editReview2El.value = reviews[1].text || ""; editReview3El.value = reviews[2].text || ""; editReview4El.value = reviews[3].text || "";
+  editRating1El.value = reviews[0].rating || ""; editRating2El.value = reviews[1].rating || ""; editRating3El.value = reviews[2].rating || ""; editRating4El.value = reviews[3].rating || "";
+}
+function switchStoreTab(tabName) {
+  const isView = tabName === "view";
+  viewTabBtnEl.classList.toggle("active", isView); editTabBtnEl.classList.toggle("active", !isView);
+  viewTabPanelEl.classList.toggle("active", isView); editTabPanelEl.classList.toggle("active", !isView);
+}
+function openStoreModal(storeId, startTab="view") {
+  selectedStoreId = storeId;
+  const store = getStoreById(storeId); if (!store) return;
+  storeModalTitleEl.textContent = `${store["상호명"] || "장소"}`;
+  storeModalSubtitleEl.textContent = store["추천상황"] || "";
+  renderStoreDetailInfo(store); renderReviewDisplay(store); renderPhotoGrid(store); fillEditForm(store); renderEditPhotoGrid(store); switchStoreTab(startTab);
+  storeModalBackdropEl.classList.add("show");
+}
+function closeStoreModal() { storeModalBackdropEl.classList.remove("show"); renderList(filteredStores); renderMarkers(filteredStores); }
+function resetEditForm() { const store = getStoreById(selectedStoreId); if (!store) return; fillEditForm(store); renderEditPhotoGrid(store); }
+async function saveStoreEdits() {
+  const store = getStoreById(selectedStoreId); if (!store) return;
+  const oldAddress = (store["주소"] || "").trim(), newAddress = editAddressEl.value.trim();
+  store["상호명"] = editNameEl.value.trim();
+  store["주요요리"] = editMainDishEl.value.trim();
+  store["주소"] = newAddress;
+  store["전화번호"] = editPhoneEl.value.trim();
+  store["추천현장"] = editSiteEl.value.trim();
+  store["추천상황"] = editSituationEl.value.trim();
+  store.reviews = [
+    { text: editReview1El.value.trim(), rating: editRating1El.value },
+    { text: editReview2El.value.trim(), rating: editRating2El.value },
+    { text: editReview3El.value.trim(), rating: editRating3El.value },
+    { text: editReview4El.value.trim(), rating: editRating4El.value }
+  ];
+  if (newAddress && newAddress !== oldAddress) {
+    const point = await geocodeAddress(newAddress);
+    if (point) { store.lat = point.lat; store.lng = point.lng; }
+  }
+  renderStoreDetailInfo(store); renderReviewDisplay(store); renderPhotoGrid(store); renderList(filteredStores); renderMarkers(filteredStores); fitMapToStores(filteredStores);
+  alert("수정 내용이 저장되었습니다."); switchStoreTab("view");
+}
+function triggerPhotoUpload() {
+  const store = getStoreById(selectedStoreId); if (!store) return;
+  if (getStorePhotos(store).length >= 4) { alert("사진은 최대 4장까지만 등록할 수 있습니다."); return; }
+  photoUploadInputEl.click();
+}
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file);
+  });
+}
+photoUploadInputEl.addEventListener("change", async function (e) {
+  const store = getStoreById(selectedStoreId); if (!store) return;
+  const files = Array.from(e.target.files || []); if (!files.length) return;
+  const currentPhotos = getStorePhotos(store), remainCount = 4 - currentPhotos.length;
+  if (remainCount <= 0) { alert("사진은 최대 4장까지만 등록할 수 있습니다."); e.target.value = ""; return; }
+  const targetFiles = files.slice(0, remainCount);
+  try {
+    const urls = [];
+    for (const file of targetFiles) urls.push(await readFileAsDataURL(file));
+    store.photos = currentPhotos.concat(urls).slice(0,4);
+    renderEditPhotoGrid(store); renderPhotoGrid(store); renderList(filteredStores); renderMarkers(filteredStores);
+  } catch (error) { console.error(error); alert("사진 업로드 중 오류가 발생했습니다."); }
+  e.target.value = "";
+});
+function removePhotoAt(index) {
+  const store = getStoreById(selectedStoreId); if (!store) return;
+  const photos = getStorePhotos(store); photos.splice(index,1); store.photos = photos;
+  renderEditPhotoGrid(store); renderPhotoGrid(store); renderList(filteredStores); renderMarkers(filteredStores);
+}
+function focusSelectedStoreOnMap() { const store = getStoreById(selectedStoreId); if (!store) return; openStoreOnMap(store); }
+function openImageViewer(src) { imageViewerImgEl.src = src; imageViewerBackdropEl.classList.add("show"); }
+function closeImageViewer() { imageViewerBackdropEl.classList.remove("show"); imageViewerImgEl.src = ""; }
+
+excelUploadEl.addEventListener("change", async function (e) {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    const requiredColumns = ["상호명", "주요요리", "주소", "전화번호", "추천현장", "추천상황"];
+    const firstRow = rows[0] || {};
+    const missing = requiredColumns.filter(col => !(col in firstRow));
+    if (rows.length > 0 && missing.length > 0) { alert("엑셀 양식이 맞지 않습니다.\n필수 컬럼: " + requiredColumns.join(", ")); return; }
+    allStores = await normalizeRows(rows);
+    filteredStores = [...allStores];
+    renderList(filteredStores); renderMarkers(filteredStores); updateCounts(filteredStores.length); fitMapToStores(filteredStores);
+  } catch (err) { console.error(err); alert("엑셀 업로드 중 오류가 발생했습니다."); }
+  e.target.value = "";
+});
+searchInputEl.addEventListener("input", applySearch);
+function downloadTemplate() {
+  const templateData = [{ "상호명":"", "주요요리":"", "주소":"", "전화번호":"", "추천현장":"", "추천상황":"" }];
+  const ws = XLSX.utils.json_to_sheet(templateData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "맛집목록");
+  XLSX.writeFile(wb, "함봐볼래_맛집_양식.xlsx");
+}
+function buildSerializableStores() {
+  return allStores.map(store => ({
+    id: store.id,
+    상호명: store["상호명"] || "",
+    주요요리: store["주요요리"] || "",
+    주소: store["주소"] || "",
+    전화번호: store["전화번호"] || "",
+    추천현장: store["추천현장"] || "",
+    추천상황: store["추천상황"] || "",
+    lat: store.lat || "",
+    lng: store.lng || "",
+    photos: Array.isArray(store.photos) ? store.photos.slice(0,4) : [],
+    reviews: Array.isArray(store.reviews) ? store.reviews.slice(0,4) : [{text:"",rating:""},{text:"",rating:""},{text:"",rating:""},{text:"",rating:""}]
+  }));
+}
+function saveHTML() {
+  const serializedStores = JSON.stringify(buildSerializableStores());
+  let html = document.documentElement.outerHTML;
+  const embeddedScript = '<script id="initialStoreData" type="application/json">' + serializedStores.replace(/</g, "\\u003c") + '</' + 'script>';
+  html = html.replace(/<script id="initialStoreData" type="application\/json">[\s\S]*?<\/script>/, embeddedScript);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "함봐볼래_네이버지도.html";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function loadInitialStoresFromHtml() {
+  try {
+    const raw = document.getElementById("initialStoreData").textContent.trim();
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) { console.error(e); return []; }
+}
+storeModalBackdropEl.addEventListener("click", function (e) { if (e.target === storeModalBackdropEl) closeStoreModal(); });
+imageViewerBackdropEl.addEventListener("click", function (e) { if (e.target === imageViewerBackdropEl) closeImageViewer(); });
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape") {
+    if (imageViewerBackdropEl.classList.contains("show")) closeImageViewer();
+    else if (storeModalBackdropEl.classList.contains("show")) closeStoreModal();
+  }
+});
+async function initializeFromEmbeddedData() {
+  const embedded = loadInitialStoresFromHtml();
+  if (!embedded.length) { updateCounts(0); renderList([]); return; }
+  allStores = await normalizeRows(embedded);
+  filteredStores = [...allStores];
+  renderList(filteredStores); renderMarkers(filteredStores); updateCounts(filteredStores.length); fitMapToStores(filteredStores);
+}
+initMap();
+initializeFromEmbeddedData();
+</script>
+</body>
+</html>
